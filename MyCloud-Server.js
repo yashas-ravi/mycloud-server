@@ -24,28 +24,12 @@ let pendingCandidates = [];
 let reconnecting = false;
 let ws=null;
 
-const UPLOAD_DIR = "/home/yashas/Documents/mycloud/";
-// Ensure directory exists
+const UPLOAD_DIR = os.homedir() + "/Downloads/mycloud/";
+
 if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
-/*
-function uploadfile(fileName,data){
-  try{
-    const base64Data = data;
-    const filename = fileName;
-    await FileSystem.writeAsStringAsync(
-      UPLOAD_DIR,
-      base64Data,
-      { encoding: FileSystem.EncodingType.Base64 }
-    );
-    console.log('File saved successfully!');
-    return JSON.stringify("File uploaded Successfully");
-  }catch(err){
-    console.log("Error while downloading file",err);
-    return JSON.stringify({error:error.message });
-  }
-}*/
+
 
 async function connectToRelay() {
   return new Promise((resolve, reject) => {
@@ -103,13 +87,15 @@ async function connectToRelay() {
 
         // --- Detect connection state changes ---
         peerConnection.onconnectionstatechange = () => {
+          if (!peerConnection) {
+            return;
+          }
           if (peerConnection.connectionState === "connected") {
             connectedClient = from;
           }
           if (peerConnection.connectionState === "disconnected" || peerConnection.connectionState === "failed") {
             connectedClient = "None";
           }
-          if (!peerConnection) return;
           console.log(`[RTC] Connection state: ${peerConnection.connectionState}`);
           if (
             peerConnection.connectionState === 'disconnected' ||
@@ -236,13 +222,18 @@ async function runNodeCommand(cmd) {
 
   if(cmd.startsWith("UPLOAD:")){
     const raw = cmd.split(":")[1];
-    const filename = raw.split("}")[0];
-    const filedata = raw.split("}")[1];
+    const filename = raw.split("@")[0];
+    const filedata = raw.split("@")[1];
     try {
-      uploadfile(filename,filedata);
-    } catch (error) {
-      return JSON.stringify({error:error.message });
-    }
+        const buffer = Buffer.from(filedata, "base64");
+        const filePath = `${UPLOAD_DIR}/${filename}`;
+        await fs.promises.writeFile(filePath, buffer);
+        console.log('File saved successfully!');
+        return JSON.stringify("File uploaded Successfully");
+      }catch(err){
+        console.log("Error while saving file",err);
+        return JSON.stringify({error:error.message });
+      }
   }
 
   switch (cmd.toUpperCase()) {
